@@ -12,3 +12,6 @@ mysql.init_app(app)
 
 from app import views
 from app import user
+from app import forums
+from app import threads
+from app import posts
