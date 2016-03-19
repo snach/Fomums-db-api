@@ -1,4 +1,4 @@
-from app import app, mysql
+from app import app, mysql,functions
 from flask import request, jsonify
 from werkzeug.exceptions import BadRequest
 import MySQLdb
@@ -41,6 +41,22 @@ def create_user():
     content_json.update({'id': user_id})
     return jsonify({'code': 0, 'response': content_json})
 
+@app.route('/db/api/user/details/', methods=['GET'])
+def details_user():
+    user_email = request.args.get('user', None)
+    if user_email is ('' or None):
+        return jsonify({'code': 2, 'response': "Incorrect request: some data missing"})
+    db = mysql.get_db()
+    cursor = db.cursor(MySQLdb.cursors.DictCursor)
+    user = functions.user_details(cursor, user_email)
+    if user is None:
+        return jsonify({'code': 1, 'response': 'User not found '})
+    return jsonify({'code': 0, 'response': user})
+
+
+
+
+
 @app.route('/db/api/user/follow', methods=['POST'])
 def create_follow():
     try:
@@ -48,4 +64,23 @@ def create_follow():
     #    print content_json
     except BadRequest:
         return jsonify({'code': 2, 'response': "Invalid request(syntax)"})
+    if 'follower' not in content_json or 'followee' not in content_json:
+        return jsonify({'code': 3, 'response':  "Incorrect request: some data missing"})
+    db = mysql.get_db()
+    cursor = db.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        cursor.execute(
+            """INSERT INTO `followers` (`follower`, `followee`)
+             VALUES (%s, %s);""",
+            (
+                content_json['follower'],
+                content_json['followee'])
+        )
+    except MySQLdb.Error:
+        return jsonify({'code': 3, 'response': "Incorrect request"})
+    user = functions.user_details(cursor, content_json['follower'])
+    return jsonify({'code': 0, 'response': user})
+
+
+
 

@@ -64,3 +64,9 @@ CREATE TABLE posts (
   isRoot        BOOL DEFAULT TRUE  NOT NULL,
   PRIMARY KEY (id)
 );
+
+DROP TABLE IF EXISTS subscriptions;
+CREATE TABLE subscriptions (
+  user   CHAR(50) NOT NULL,
+  thread INT          NOT NULL
+);
