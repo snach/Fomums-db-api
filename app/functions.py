@@ -13,6 +13,7 @@ def list_followers(cursor, email):
 
 
 def user_details(cursor, email):
+
     cursor.execute("""SELECT * FROM `users` WHERE `email` = %s;""", (email,))
     user = cursor.fetchone()
 

@@ -145,7 +145,7 @@ def list_followers():
     if limit is None:
         limit = " "
     else:
-        limit = 'LIMIT' + limit
+        limit = 'LIMIT ' + limit
 
 
     db = mysql.get_db()
@@ -170,7 +170,14 @@ def list_followers():
         following = functions.list_following(cursor, user['email'])
         followers = functions.list_followers(cursor, user['email'])
 
-        cursor.execute("""SELECT `thread` FROM `subscriptions` WHERE `user` = %s;""", (user['email'],))
+        cursor.execute(
+            """SELECT `thread`
+                FROM `subscriptions`
+                WHERE `user` = %s;""",
+            (
+                user['email'],
+            )
+        )
         threads = [i['thread'] for i in cursor.fetchall()]
 
         user.update({'following': following, 'followers': followers, 'subscriptions': threads})
@@ -190,8 +197,7 @@ def list_following():
     if limit is None:
         limit = " "
     else:
-        limit = 'LIMIT' + limit
-
+        limit = 'LIMIT ' + limit
 
     db = mysql.get_db()
     cursor = db.cursor(MySQLdb.cursors.DictCursor)
@@ -218,9 +224,51 @@ def list_following():
         threads = [i['thread'] for i in cursor.fetchall()]
 
         user.update({'following': following, 'followers': followers, 'subscriptions': threads})
-
     return jsonify({'code': 0, 'response': users})
 
 
+@app.route('/db/api/user/listPosts/', methods=['GET'])
+def list_posts():
+    user_email = request.args.get('user', None)
+
+    since = request.args.get('since', " ")
+    limit = request.args.get('limit', None)
+    order = request.args.get('order', 'DESC')
+
+    if user_email is None:
+        return jsonify({'code': 1, 'response': "User not found "})
+
+    if since is " ":
+        since_str = " "
+    else:
+        since_str = " AND `date` >=  "
+
+    if limit is None:
+        limit = " "
+    else:
+        limit = ' LIMIT ' + limit
+
+    db = mysql.get_db()
+    cursor = db.cursor(MySQLdb.cursors.DictCursor)
+
+    try:
+        print user_email
+        cursor.execute(
+           """SELECT *
+            FROM `posts`
+            WHERE `user` = %s """ + since_str + "%s" +
+           " ORDER BY `date` " + order + limit + " ;",
+            (user_email, since,)
+
+        )
+    except MySQLdb.Error:
+        return jsonify({'code': 3, 'response': "Incorrect request"})
+
+    posts = [i for i in cursor.fetchall()]
+
+    for post in posts:
+        post.update({'date': str(post['date'])})
+
+    return jsonify({'code': 0, 'response': posts})
 
 
