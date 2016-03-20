@@ -17,6 +17,21 @@ def clear():
     cursor.execute('TRUNCATE TABLE posts')
     cursor.execute('TRUNCATE TABLE forums')
     cursor.execute('TRUNCATE TABLE followers')
+    cursor.execute('TRUNCATE TABLE subscriptions')
 
     db.commit()
-    return jsonify(code=0, response="OK")
+    return jsonify({'code': 0, 'response': 'OK'})
+
+@app.route('/db/api/clear/', methods=['GET'])
+def status():
+    tables = ['users', 'threads', 'forums', 'posts']
+    response = {}
+    db = mysql.get_db()
+    cursor = db.cursor()
+    for table in tables:
+        cursor.execute('SELECT COUNT(1) FROM %s' % table)
+        db.commit()
+        response[table] = cursor.fetchone()[0]
+    cursor.close()
+    db.close()
+    return jsonify({'code': 0, 'response': response})

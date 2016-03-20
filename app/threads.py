@@ -92,3 +92,198 @@ def thread_detail():
 
     return jsonify({'code': 0, 'response': thread})
 
+@app.route('/db/api/thread/update', methods=['POST'])
+def update_thread():
+    try:
+        content_json = request.json
+    #    print content_json
+    except BadRequest:
+        return jsonify({'code': 2, 'response': "Invalid request(syntax)"})
+    if 'message' not in content_json or 'slug' not in content_json or 'thread' not in content_json:
+        return jsonify({'code': 3, 'response':  "Incorrect request: some data missing"})
+
+    db = mysql.get_db()
+    cursor = db.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        cursor.execute(
+            """UPDATE `threads` SET `message` = %s, `slug` = %s
+            WHERE `id` = %s;""",
+            (
+                content_json['message'],
+                content_json['slug'],
+                int(content_json['thread'])
+            )
+        )
+        db.commit()
+    except MySQLdb.Error:
+        return jsonify({'code': 3, 'response': "Incorrect request"})
+
+    thread = functions.thread_details(cursor, int(content_json['thread']))
+
+    return jsonify({'code': 0, 'response': {'thread': thread}})
+
+@app.route('/db/api/thread/vote', methods=['POST'])
+def vote_thread():
+    try:
+        content_json = request.json
+    #    print content_json
+    except BadRequest:
+        return jsonify({'code': 2, 'response': "Invalid request(syntax)"})
+    if 'thread' not in content_json or 'vote' not in content_json:
+        return jsonify({'code': 3, 'response':  "Incorrect request: some data missing"})
+
+    if content_json['vote'] != 1 and content_json['vote'] != -1:
+        return jsonify({'code': 3, 'response':  "Incorrect request: vote is wrong"})
+
+    db = mysql.get_db()
+    cursor = db.cursor(MySQLdb.cursors.DictCursor)
+
+    try:
+        if content_json['vote'] == 1:
+            cursor.execute(
+                """UPDATE `threads` SET `likes` = `likes` + 1, `points` = `points` + 1
+                WHERE `id` = %s;""",
+                (int(content_json['thread']),))
+        else:
+            cursor.execute(
+                """UPDATE `threads` SET `dislikes` = `dislikes` + 1, `points` = `points` - 1
+                WHERE `id` = %s;""",
+                (int(content_json['thread']),))
+        db.commit()
+
+    except MySQLdb.Error:
+        return jsonify({'code': 3, 'response': "Incorrect request"})
+
+    thread = functions.thread_details(cursor, int(content_json['thread']))
+
+    return jsonify({'code': 0, 'response': thread})
+
+@app.route('/db/api/thread/unsubscribe', methods=['POST'])
+def unsubscribe():
+    try:
+        content_json = request.json
+    #    print content_json
+    except BadRequest:
+        return jsonify({'code': 2, 'response': "Invalid request(syntax)"})
+    if 'user' not in content_json or 'thread' not in content_json :
+        return jsonify({'code': 3, 'response':  "Incorrect request: some data missing"})
+    db = mysql.get_db()
+    cursor = db.cursor()
+    try:
+        cursor.execute(
+            """DELETE `subscriptions`
+                WHERE `user` = %s AND `thread` = %s ;""",
+            (
+                content_json['user'],
+                content_json['thread'],
+            )
+        )
+    except MySQLdb.Error:
+        return jsonify({'code': 3, 'response': "Incorrect request"})
+    db.commit()
+    return jsonify({'code': 0, 'response': content_json})
+
+@app.route('/db/api/thread/close', methods=['POST'])
+def close_thread():
+    try:
+        content_json = request.json
+    #    print content_json
+    except BadRequest:
+        return jsonify({'code': 2, 'response': "Invalid request(syntax)"})
+    if 'thread' not in content_json:
+        return jsonify({'code': 3, 'response':  "Incorrect request: some data missing"})
+
+    db = mysql.get_db()
+    cursor = db.cursor()
+
+    try:
+        cursor.execute(
+            """UPDATE `threads` SET `isClosed` = TRUE
+            WHERE `id` = %s;""",
+            (int(content_json['thread']),)
+        )
+    except MySQLdb.Error:
+        db.rollback()
+
+    db.commit()
+    return jsonify({'code': 0, 'response': content_json})
+
+@app.route('/db/api/thread/open', methods=['POST'])
+def open_thread():
+    try:
+        content_json = request.json
+    #    print content_json
+    except BadRequest:
+        return jsonify({'code': 2, 'response': "Invalid request(syntax)"})
+    if 'thread' not in content_json:
+        return jsonify({'code': 3, 'response':  "Incorrect request: some data missing"})
+
+    db = mysql.get_db()
+    cursor = db.cursor()
+
+    try:
+        cursor.execute(
+            """UPDATE `threads` SET `isClosed` = FALSE
+            WHERE `id` = %s;""",
+            (int(content_json['thread']),)
+        )
+    except MySQLdb.Error:
+        db.rollback()
+
+    db.commit()
+    return jsonify({'code': 0, 'response': content_json})
+
+@app.route('/db/api/thread/list/', methods=['GET'])
+def list_threads():
+    forum = request.args.get('forum', " ")
+    user = request.args.get('user', " ")
+    since = request.args.get('since', " ")
+    limit = request.args.get('limit', None)
+    order = request.args.get('order', 'DESC')
+
+    if user is None and forum is None:
+        return jsonify({'code': 3, 'response':  "Incorrect request: some data missing"})
+
+    if user is not None:
+        user_or_forum = " `user` "
+    else:
+        user_or_forum = " `forum` "
+
+    if since is " ":
+        since_str = " "
+    else:
+        since_str = " AND `date` >=  "
+
+    if limit is None:
+        limit = " "
+    else:
+        limit = ' LIMIT ' + limit
+
+    db = mysql.get_db()
+    cursor = db.cursor(MySQLdb.cursors.DictCursor)
+
+    try:
+
+        cursor.execute(
+           """SELECT *
+            FROM `threads`
+            WHERE %s = %s %s """ + since_str + "%s" +
+           " ORDER BY `date` " + order + limit + " ;",
+            (
+                user_or_forum,
+                user,
+                forum,
+                since,)
+
+            )
+    except MySQLdb.Error:
+        return jsonify({'code': 3, 'response': "Incorrect request"})
+
+    threads = [i for i in cursor.fetchall()]
+    for thread in threads:
+        thread.update({'date': str(thread['date'])})
+
+    return jsonify({'code': 0, 'response': threads})
+
+
+
