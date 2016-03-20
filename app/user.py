@@ -1,4 +1,4 @@
-from app import app, mysql,functions
+from app import app, mysql, functions
 from flask import request, jsonify
 from werkzeug.exceptions import BadRequest
 import MySQLdb
@@ -32,7 +32,8 @@ def create_user():
                 content_json['username'],
                 content_json['name'],
                 content_json['about'],
-                content_json['isAnonymous'])
+                content_json['isAnonymous']
+            )
         )
     except MySQLdb.Error:
         return jsonify({'code': 3, 'response': "Incorrect request: user is already exist"})
@@ -49,6 +50,7 @@ def details_user():
     db = mysql.get_db()
     cursor = db.cursor(MySQLdb.cursors.DictCursor)
     user = functions.user_details(cursor, user_email)
+
     if user is None:
         return jsonify({'code': 1, 'response': 'User not found '})
     return jsonify({'code': 0, 'response': user})
@@ -70,7 +72,8 @@ def create_follow():
              VALUES (%s, %s);""",
             (
                 content_json['follower'],
-                content_json['followee'])
+                content_json['followee']
+            )
         )
     except MySQLdb.Error:
         return jsonify({'code': 3, 'response': "Incorrect request"})
@@ -97,7 +100,8 @@ def update_user():
             (
                 content_json['about'],
                 content_json['name'],
-                content_json['user'])
+                content_json['user']
+            )
         )
     except MySQLdb.Error:
         return jsonify({'code': 3, 'response': "Incorrect request: user is already exist"})
@@ -124,7 +128,8 @@ def delete_follow():
                 WHERE `follower` = %s and `followee` = %s;""",
             (
                 content_json['follower'],
-                content_json['followee'])
+                content_json['followee']
+            )
         )
     except MySQLdb.Error:
         return jsonify({'code': 3, 'response': "Incorrect request"})
@@ -146,7 +151,6 @@ def list_followers():
         limit = " "
     else:
         limit = 'LIMIT ' + limit
-
 
     db = mysql.get_db()
     cursor = db.cursor(MySQLdb.cursors.DictCursor)
@@ -252,9 +256,9 @@ def list_posts():
     cursor = db.cursor(MySQLdb.cursors.DictCursor)
 
     try:
-        print user_email
         cursor.execute(
-           """SELECT *
+           """SELECT `id`, `message`, `forum`, `user`, `thread`, `likes`, `dislikes`, `points`, `isDeleted`,
+`isSpam`, `isEdited`, `isApproved`, `isHighlighted`, `date`, `parent`
             FROM `posts`
             WHERE `user` = %s """ + since_str + "%s" +
            " ORDER BY `date` " + order + limit + " ;",

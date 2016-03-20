@@ -1,4 +1,4 @@
-from app import app, mysql
+from app import app, mysql, functions
 from flask import request, jsonify
 from werkzeug.exceptions import BadRequest
 import MySQLdb
@@ -66,3 +66,29 @@ def subscribe():
         return jsonify({'code': 3, 'response': "Incorrect request"})
     db.commit()
     return jsonify({'code': 0, 'response': content_json})
+
+@app.route('/db/api/thread/details/', methods=['GET'])
+def thread_detail():
+    thread_id = request.args.get('thread', None)
+    related = request.args.getlist('related', [])
+    thread_id = int(thread_id)
+    if thread_id is ('' or None):
+        return jsonify({'code': 2, 'response': "Incorrect request: some data missing"})
+    db = mysql.get_db()
+    cursor = db.cursor(MySQLdb.cursors.DictCursor)
+
+    thread = functions.thread_details(cursor, thread_id)
+
+    if 'user' in related:
+        user = functions.user_details(cursor, thread['user'])
+        thread.update({'user': user})
+
+    if 'forum' in related:
+        forum = functions.forum_details(cursor, thread['forum'])
+        thread.update({'forum': forum})
+
+    if thread is None:
+        return jsonify({'code': 1, 'response': "Post not found"})
+
+    return jsonify({'code': 0, 'response': thread})
+

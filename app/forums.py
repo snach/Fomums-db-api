@@ -1,4 +1,4 @@
-from app import app, mysql
+from app import app, mysql, functions
 from flask import request, jsonify
 from werkzeug.exceptions import BadRequest
 import MySQLdb
@@ -32,3 +32,29 @@ def create_forum():
     db.commit()
     content_json.update({'id': forum_id})
     return jsonify({'code': 0, 'response': content_json})
+
+@app.route('/db/api/forum/details/', methods=['GET'])
+def forum_detail():
+    short_name = request.args.get('forum', None)
+    related = request.args.get('related', [])
+
+    if short_name is ('' or None):
+        return jsonify({'code': 2, 'response': "Incorrect request: some data missing"})
+    db = mysql.get_db()
+    cursor = db.cursor(MySQLdb.cursors.DictCursor)
+
+    try:
+        cursor.execute("""SELECT * FROM `forums` WHERE `short_name` = %s;""", (short_name,))
+    except MySQLdb.Error:
+        return jsonify({'code': 3, 'response': "Incorrect request"})
+
+    forum = cursor.fetchone()
+
+    if related == 'user':
+        user = functions.user_details(cursor, forum['user'])
+        forum.update({'user': user})
+
+    if forum is None:
+        return jsonify({'code': 1, 'response': "Post not found"})
+
+    return jsonify({'code': 0, 'response': forum})
