@@ -5,17 +5,17 @@ import MySQLdb
 
 
 
-@app.route('/db/api/user/create', methods=['POST'])
+@app.route('/db/api/user/create/', methods=['POST'])
 def create_user():
     try:
         content_json = request.json
     #    print content_json
     except BadRequest:
         return jsonify({'code': 2, 'response': "Invalid request(syntax)"})
-    if content_json.setdefault('isAnonymous'):
-        content_json['name'] = ''
-        content_json['username'] = ''
-        content_json['about'] = ''
+    #if content_json.setdefault('isAnonymous'):
+    #    content_json['name'] = ''
+    #    content_json['username'] = ''
+    #    content_json['about'] = ''
     else:
         if 'username' not in content_json or 'about' not in content_json or 'name' not in content_json \
                 or 'email' not in content_json or 'isAnonymous' not in content_json:
@@ -36,7 +36,7 @@ def create_user():
             )
         )
     except MySQLdb.Error:
-        return jsonify({'code': 3, 'response': "Incorrect request: user is already exist"})
+        return jsonify({'code': 5, 'response': "Incorrect request: user is already exist"})
     user_id = cursor.lastrowid
     db.commit()
     content_json.update({'id': user_id})
@@ -55,7 +55,7 @@ def details_user():
         return jsonify({'code': 1, 'response': 'User not found '})
     return jsonify({'code': 0, 'response': user})
 
-@app.route('/db/api/user/follow', methods=['POST'])
+@app.route('/db/api/user/follow/', methods=['POST'])
 def create_follow():
     try:
         content_json = request.json
@@ -81,7 +81,7 @@ def create_follow():
     user = functions.user_details(cursor, content_json['follower'])
     return jsonify({'code': 0, 'response': user})
 
-@app.route('/db/api/user/updateProfile', methods=['POST'])
+@app.route('/db/api/user/updateProfile/', methods=['POST'])
 def update_user():
     try:
         content_json = request.json
@@ -109,7 +109,7 @@ def update_user():
     user = functions.user_details(cursor, content_json['user'])
     return jsonify({'code': 0, 'response': user})
 
-@app.route('/db/api/user/unfollow', methods=['POST'])
+@app.route('/db/api/user/unfollow/', methods=['POST'])
 def delete_follow():
     try:
         content_json = request.json
@@ -150,7 +150,7 @@ def list_followers():
     if limit is None:
         limit = " "
     else:
-        limit = 'LIMIT ' + limit
+        limit = ' LIMIT ' + limit
 
     db = mysql.get_db()
     cursor = db.cursor(MySQLdb.cursors.DictCursor)
@@ -201,7 +201,7 @@ def list_following():
     if limit is None:
         limit = " "
     else:
-        limit = 'LIMIT ' + limit
+        limit = ' LIMIT ' + limit
 
     db = mysql.get_db()
     cursor = db.cursor(MySQLdb.cursors.DictCursor)

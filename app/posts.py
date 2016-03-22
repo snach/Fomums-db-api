@@ -2,9 +2,10 @@ from app import app, mysql, functions
 from flask import request, jsonify
 from werkzeug.exceptions import BadRequest
 import MySQLdb
+import ujson
 
 
-@app.route('/db/api/post/create', methods=['POST'])
+@app.route('/db/api/post/create/', methods=['POST'])
 def create_post():
     try:
         content_json = request.json
@@ -17,29 +18,35 @@ def create_post():
             or 'isEdited' not in content_json:
         return jsonify({'code': 3, 'response':  "Incorrect request: some data missing"})
 
+
     db = mysql.get_db()
     cursor = db.cursor()
 
-    #try:
-    cursor.execute(
-        """INSERT INTO `posts` (`isApproved`, `user`, `date`, `message`, `isSpam`,`isHighlighted`, `thread`,
-        `forum`,`isDeleted`, `isEdited`) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s);""",
-        (
-            content_json['isApproved'],
-            content_json['user'],
-            content_json['date'],
-            content_json['message'],
-            content_json['isSpam'],
-            content_json['isHighlighted'],
-            content_json['thread'],
-            content_json['forum'],
-            content_json['isDeleted'],
-            content_json['isEdited']
+    try:
+        cursor.execute(
+            """INSERT INTO `posts` (`isApproved`, `user`, `date`, `message`, `isSpam`,`isHighlighted`, `thread`,
+            `forum`,`isDeleted`, `isEdited`,`parent`) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);""",
+            (
+                content_json['isApproved'],
+                content_json['user'],
+                content_json['date'],
+                content_json['message'],
+                content_json['isSpam'],
+                content_json['isHighlighted'],
+                content_json['thread'],
+                content_json['forum'],
+                content_json['isDeleted'],
+                content_json['isEdited'],
+                content_json['parent']
+            )
         )
-    )
-    #except MySQLdb.Error:
-    #    return jsonify({'code': 3, 'response': "Incorrect request: user is already exist"})
+    except MySQLdb.Error:
+        return jsonify({'code': 3, 'response': "Incorrect request: post is already exist"})
     post_id = cursor.lastrowid
+    try:
+        cursor.execute("""UPDATE `threads` SET `posts` = `posts` + 1 WHERE `id` = %s;""", (content_json['thread'],))
+    except MySQLdb.Error:
+        return jsonify({'code': 3, 'response': "Incorrect request"})
     db.commit()
     content_json.update({'id': post_id})
     return jsonify({'code': 0, 'response': content_json})
@@ -47,11 +54,15 @@ def create_post():
 @app.route('/db/api/post/details/', methods=['GET'])
 def details_post():
     post_id = request.args.get('post', None)
-    related = request.args.getlist('related', [])
+    related = request.args.getlist('related')
 
-    if post_id is ('' or None):
-        return jsonify({'code': 2, 'response': "Incorrect request: some data missing"})
+    if post_id is None:
+        return jsonify({'code': 3, 'response':  "Incorrect request: some data missing"})
+
     post_id = int(post_id)
+
+    if post_id < 1:
+        return jsonify({'code': 3, 'response':  "Incorrect request"})
 
     db = mysql.get_db()
     cursor = db.cursor(MySQLdb.cursors.DictCursor)
@@ -70,18 +81,13 @@ def details_post():
         thread = functions.thread_details(cursor, post['thread'])
         post.update({'thread': thread})
 
-    if post is None:
-        return jsonify({'code': 1, 'response': "Post not found"})
-
-    post.update({'date': str(post['date'])})
-
     return jsonify({'code': 0, 'response': post})
 
-@app.route('/db/api/post/remove', methods=['POST'])
+@app.route('/db/api/post/remove/', methods=['POST'])
 def remove_post():
     try:
         content_json = request.json
-    #    print content_json
+        print content_json
     except BadRequest:
         return jsonify({'code': 2, 'response': "Invalid request(syntax)"})
     if 'post' not in content_json:
@@ -100,7 +106,8 @@ def remove_post():
     except MySQLdb.Error:
         return jsonify({'code': 3, 'response': "Incorrect request"})
     is_deleted = cursor.fetchone()
-    if is_deleted is False:
+
+    if is_deleted['isDeleted'] is 0:
         try:
             cursor.execute(
                 """UPDATE `threads` SET `posts` = `posts` - 1
@@ -122,7 +129,7 @@ def remove_post():
 
     return jsonify({'code': 0, 'response': {'post': content_json['post']}})
 
-@app.route('/db/api/post/update', methods=['POST'])
+@app.route('/db/api/post/update/', methods=['POST'])
 def update_post():
     try:
         content_json = request.json
@@ -153,7 +160,7 @@ def update_post():
 
     return jsonify({'code': 0, 'response': post})
 
-@app.route('/db/api/post/vote', methods=['POST'])
+@app.route('/db/api/post/vote/', methods=['POST'])
 def vote_post():
     try:
         content_json = request.json
@@ -189,7 +196,7 @@ def vote_post():
 
     return jsonify({'code': 0, 'response': post})
 
-@app.route('/db/api/post/restore', methods=['POST'])
+@app.route('/db/api/post/restore/', methods=['POST'])
 def restore_post():
     try:
         content_json = request.json
@@ -212,7 +219,7 @@ def restore_post():
     except MySQLdb.Error:
         return jsonify({'code': 3, 'response': "Incorrect request"})
     is_deleted = cursor.fetchone()
-    if is_deleted is True:
+    if is_deleted['isDeleted'] is 1:
         try:
             cursor.execute(
                 """UPDATE `threads` SET `posts` = `posts` + 1
@@ -237,52 +244,39 @@ def restore_post():
 
 @app.route('/db/api/post/list/', methods=['GET'])
 def list_posts():
-    forum = request.args.get('forum', " ")
-    thread = request.args.get('thread', " ")
-    since = request.args.get('since', " ")
-    limit = request.args.get('limit', None)
-    order = request.args.get('order', 'DESC')
+    forum = request.args.get('forum', None)
+    thread = request.args.get('thread', None)
+    since = request.args.get('since')
+    limit = request.args.get('limit')
+    order = request.args.get('order', 'desc')
 
     if thread is None and forum is None:
+
         return jsonify({'code': 3, 'response':  "Incorrect request: some data missing"})
 
-    if thread is not None:
-        thread_or_forum = " `thread` "
+    if forum is not None:
+        query = """SELECT * FROM `posts` WHERE `forum` = %s """
+        query_params = (forum,)
     else:
-        thread_or_forum = " `forum` "
+        query = """SELECT * FROM `posts` WHERE `thread` = %s """
+        query_params = (thread,)
 
-    if since is " ":
-        since_str = " "
-    else:
-        since_str = " AND `date` >=  "
+    if since is not None:
+        query += "AND `date` >= %s "
+        query_params += (since,)
 
-    if limit is None:
-        limit = " "
-    else:
-        limit = ' LIMIT ' + limit
+    query += "ORDER BY `date` " + order + " "
+
+    if limit is not None:
+        query += "LIMIT %s;"
+        query_params += (int(limit),)
 
     db = mysql.get_db()
     cursor = db.cursor(MySQLdb.cursors.DictCursor)
-
-    try:
-
-        cursor.execute(
-           """SELECT `id`, `message`, `forum`, `user`, `thread`, `likes`, `dislikes`, `points`, `isDeleted`,
-`isSpam`, `isEdited`, `isApproved`, `isHighlighted`, `date`, `parent`
-            FROM `posts`
-            WHERE %s = %s %s """ + since_str + "%s" +
-           " ORDER BY `date` " + order + limit + " ;",
-            (
-                thread_or_forum,
-                thread,
-                forum,
-                since,)
-
-            )
-    except MySQLdb.Error:
-        return jsonify({'code': 3, 'response': "Incorrect request"})
+    cursor.execute(query, query_params)
 
     posts = [i for i in cursor.fetchall()]
+
     for post in posts:
         post.update({'date': str(post['date'])})
 

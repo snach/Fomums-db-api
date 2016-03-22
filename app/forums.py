@@ -5,7 +5,7 @@ import MySQLdb
 
 
 
-@app.route('/db/api/forum/create', methods=['POST'])
+@app.route('/db/api/forum/create/', methods=['POST'])
 def create_forum():
     try:
         content_json = request.json
