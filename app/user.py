@@ -233,19 +233,21 @@ def list_following():
 
 @app.route('/db/api/user/listPosts/', methods=['GET'])
 def list_posts():
+    print "enter"
     user_email = request.args.get('user', None)
 
-    since = request.args.get('since', " ")
+    since = request.args.get('since', None)
     limit = request.args.get('limit', None)
     order = request.args.get('order', 'DESC')
-
+    print user_email
     if user_email is None:
+        print "fhgjk"
         return jsonify({'code': 1, 'response': "User not found "})
 
-    if since is " ":
+    if since is None:
         since_str = " "
     else:
-        since_str = " AND `date` >=  "
+        since_str = " AND `date` >=  " + since
 
     if limit is None:
         limit = " "
@@ -260,9 +262,9 @@ def list_posts():
            """SELECT `id`, `message`, `forum`, `user`, `thread`, `likes`, `dislikes`, `points`, `isDeleted`,
 `isSpam`, `isEdited`, `isApproved`, `isHighlighted`, `date`, `parent`
             FROM `posts`
-            WHERE `user` = %s """ + since_str + "%s" +
+            WHERE `user` = %s """ + since_str +
            " ORDER BY `date` " + order + limit + " ;",
-            (user_email, since,)
+            (user_email, )
 
         )
     except MySQLdb.Error:

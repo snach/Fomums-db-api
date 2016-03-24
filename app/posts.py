@@ -18,7 +18,6 @@ def create_post():
             or 'isEdited' not in content_json:
         return jsonify({'code': 3, 'response':  "Incorrect request: some data missing"})
 
-
     db = mysql.get_db()
     cursor = db.cursor()
 
@@ -40,6 +39,7 @@ def create_post():
                 content_json['parent']
             )
         )
+
     except MySQLdb.Error:
         return jsonify({'code': 3, 'response': "Incorrect request: post is already exist"})
     post_id = cursor.lastrowid
@@ -62,7 +62,7 @@ def details_post():
     post_id = int(post_id)
 
     if post_id < 1:
-        return jsonify({'code': 3, 'response':  "Incorrect request"})
+        return jsonify({'code': 1, 'response':  "Incorrect request: post don\'t found"})
 
     db = mysql.get_db()
     cursor = db.cursor(MySQLdb.cursors.DictCursor)
@@ -281,3 +281,5 @@ def list_posts():
         post.update({'date': str(post['date'])})
 
     return jsonify({'code': 0, 'response': posts})
+
+

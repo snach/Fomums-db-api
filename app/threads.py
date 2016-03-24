@@ -50,7 +50,7 @@ def subscribe():
     #    print content_json
     except BadRequest:
         return jsonify({'code': 2, 'response': "Invalid request(syntax)"})
-    if 'user' not in content_json or 'thread' not in content_json :
+    if 'user' not in content_json or 'thread' not in content_json:
         return jsonify({'code': 3, 'response':  "Incorrect request: some data missing"})
     db = mysql.get_db()
     cursor = db.cursor()
@@ -82,6 +82,8 @@ def thread_detail():
 
     if thread is None:
         return jsonify({'code': 1, 'response': "Post not found"})
+    if 'thread' in related:
+        return jsonify({'code': 3, 'response': "Incorrect request"})
 
     if 'user' in related:
         user = functions.user_details(cursor, thread['user'])
@@ -172,11 +174,11 @@ def unsubscribe():
     cursor = db.cursor()
     try:
         cursor.execute(
-            """DELETE `subscriptions`
+            """DELETE FROM`subscriptions`
                 WHERE `user` = %s AND `thread` = %s ;""",
             (
                 content_json['user'],
-                content_json['thread'],
+                int(content_json['thread']),
             )
         )
     except MySQLdb.Error:
@@ -262,8 +264,17 @@ def remove_thread():
     if is_deleted['isDeleted'] is 0:
         try:
 
-            cursor.execute("""UPDATE `threads` SET `isDeleted` = TRUE WHERE `id` = %s;""", (content_json['thread'],))
-            cursor.execute("""UPDATE `posts` SET `isDeleted` = TRUE WHERE `thread` = %s;""", (content_json['thread'],))
+            cursor.execute(
+                """UPDATE `threads` SET `isDeleted` = TRUE WHERE `id` = %s;""",
+                (content_json['thread'],)
+            )
+            cursor.execute(
+                """UPDATE `posts` SET `isDeleted` = TRUE WHERE `thread` = %s;""",
+                (content_json['thread'],)
+            )
+            cursor.execute(
+                """UPDATE `threads` SET `posts` = 0;"""
+            )
 
             db.commit()
 
@@ -372,16 +383,18 @@ def list_threads():
 
     return jsonify({'code': 0, 'response': threads})
 
-@app.route('/db/api/post/listPosts/', methods=['GET'])
+@app.route('/db/api/thread/listPosts/', methods=['GET'])
 def list_posts():
     thread = request.args.get('thread', None)
     since = request.args.get('since', " ")
     limit = request.args.get('limit', None)
     order = request.args.get('order', 'desc')
     sort = request.args.get('sort', 'flat')
+    print "loh"
 
     if thread is None:
         return jsonify({'code': 3, 'response':  "Incorrect request: some data missing"})
+    print sort
 
     if sort is "flat":
 
@@ -416,6 +429,8 @@ def list_posts():
         posts = [i for i in cursor.fetchall()]
         for post in posts:
             post.update({'date': str(thread['date'])})
+        return jsonify({'code': 0, 'response': posts})
+    return jsonify({'code': 1, 'response': " "})
 
 
 

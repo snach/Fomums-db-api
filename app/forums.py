@@ -62,17 +62,17 @@ def forum_detail():
 @app.route('/db/api/forum/listUsers/', methods=['GET'])
 def list_users():
     forum = request.args.get('forum', None)
-    since_id = request.args.get('since_id', " ")
+    since_id = request.args.get('since_id', None)
     limit = request.args.get('limit', None)
     order = request.args.get('order', 'DESC')
 
     if forum is None:
         return jsonify({'code': 3, 'response':  "Incorrect request: some data missing"})
 
-    if since_id is " ":
+    if since_id is None:
         since_str = " "
     else:
-        since_str = " AND `id` >=  "
+        since_str = " AND `id` >=  " + since_id
 
     if limit is None:
         limit = " "
@@ -86,27 +86,29 @@ def list_users():
 
         cursor.execute(
             """SELECT * FROM `users`
-            WHERE `email` IN (SELECT DISTINCT `user` FROM `posts` WHERE `forum` = %s)""" + since_str + "%s" +
+            WHERE `email` IN (SELECT DISTINCT `user` FROM `posts` WHERE `forum` = %s)"""
+            + since_str +
             " ORDER BY `name` " + order + limit + " ;",
             (
                 forum,
-                since_id,
-            )
 
             )
+
+        )
     except MySQLdb.Error:
         return jsonify({'code': 3, 'response': "Incorrect request"})
-
+    resp = []
     users = [i for i in cursor.fetchall()]
     for user in users:
         user = functions.user_details(cursor, user['email'])
+        resp.append(user)
 
-    return jsonify({'code': 0, 'response': users})
+    return jsonify({'code': 0, 'response': resp})
 
 @app.route('/db/api/forum/listThreads/', methods=['GET'])
 def list_threads():
     forum = request.args.get('forum', None)
-    since = request.args.get('since', " ")
+    since = request.args.get('since', None)
     limit = request.args.get('limit', None)
     order = request.args.get('order', 'DESC')
     related = request.args.getlist('related', [])
@@ -114,10 +116,10 @@ def list_threads():
     if forum is None:
         return jsonify({'code': 3, 'response':  "Incorrect request: some data missing"})
 
-    if since is " ":
+    if since is None:
         since_str = " "
     else:
-        since_str = " AND `date` >=  "
+        since_str = " AND `date` >=  " + since
 
     if limit is None:
         limit = " "
@@ -130,15 +132,16 @@ def list_threads():
     try:
 
         cursor.execute(
-            """SELECT * FROM `threads` WHERE `forum` = %s """ + since_str + "%s" +
+            """SELECT * FROM `threads` WHERE `forum` = %s """ + since_str  +
             " ORDER BY `date` " + order + limit + " ;",
             (
                 forum,
-                since,
             )
         )
     except MySQLdb.Error:
         return jsonify({'code': 3, 'response': "Incorrect request"})
+
+    resp = []
 
     threads = [i for i in cursor.fetchall()]
 
@@ -152,13 +155,14 @@ def list_threads():
             thread.update({'forum': forum})
 
         thread.update({'date': str(thread['date'])})
+        resp.append(thread)
 
-    return jsonify({'code': 0, 'response': threads})
+    return jsonify({'code': 0, 'response': resp})
 
 @app.route('/db/api/forum/listPosts/', methods=['GET'])
 def list_posts():
     forum = request.args.get('forum', None)
-    since = request.args.get('since', " ")
+    since = request.args.get('since', None)
     limit = request.args.get('limit', None)
     order = request.args.get('order', 'DESC')
     related = request.args.getlist('related', [])
@@ -166,10 +170,10 @@ def list_posts():
     if forum is None:
         return jsonify({'code': 3, 'response':  "Incorrect request: some data missing"})
 
-    if since is " ":
+    if since is None:
         since_str = " "
     else:
-        since_str = " AND `date` >=  "
+        since_str = " AND `date` >=  " + since
 
     if limit is None:
         limit = " "
@@ -184,18 +188,18 @@ def list_posts():
         cursor.execute(
             """SELECT `id`, `message`, `forum`, `user`, `thread`, `likes`, `dislikes`, `points`, `isDeleted`,
 `isSpam`, `isEdited`, `isApproved`, `isHighlighted`, `date`, `parent` FROM `posts`
-            FROM `posts` WHERE `forum` = %s """ + since_str + "%s" +
+            FROM `posts` WHERE `forum` = %s """ + since_str +
             " ORDER BY `date` " + order + limit + " ;",
             (
                 forum,
-                since,
+
             )
         )
     except MySQLdb.Error:
         return jsonify({'code': 3, 'response': "Incorrect request"})
 
     posts = [i for i in cursor.fetchall()]
-
+    resp = []
     for post in posts:
         if 'user' in related:
             user = functions.user_details(cursor, post['user'])
@@ -210,5 +214,6 @@ def list_posts():
             post.update({'thread': thread})
 
         post.update({'date': str(post['date'])})
+        resp.append(post)
 
-    return jsonify({'code': 0, 'response': posts})
+    return jsonify({'code': 0, 'response': resp})
