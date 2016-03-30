@@ -232,41 +232,38 @@ def list_following():
 
 
 @app.route('/db/api/user/listPosts/', methods=['GET'])
-def list_posts():
+def list_posts_from_user():
     print "enter"
-    user_email = request.args.get('user', None)
+    user = request.args.get('user', None)
 
     since = request.args.get('since', None)
     limit = request.args.get('limit', None)
     order = request.args.get('order', 'DESC')
-    print user_email
-    if user_email is None:
-        print "fhgjk"
+
+    if user is None:
         return jsonify({'code': 1, 'response': "User not found "})
 
-    if since is None:
-        since_str = " "
-    else:
-        since_str = " AND `date` >=  " + since
+    query = """SELECT `id`, `message`, `forum`, `user`, `thread`, `likes`, `dislikes`, `points`, `isDeleted`,
+`isSpam`, `isEdited`, `isApproved`, `isHighlighted`, `date`, `parent`
+            FROM `posts`
+            WHERE `user` = %s """
+    query_params = (user,)
 
-    if limit is None:
-        limit = " "
-    else:
-        limit = ' LIMIT ' + limit
+    if since is not None:
+        query += "AND `date` >= %s "
+        query_params += (since,)
+
+    query += "ORDER BY `date` " + order + " "
+
+    if limit is not None:
+        query += "LIMIT %s;"
+        query_params += (int(limit),)
 
     db = mysql.get_db()
     cursor = db.cursor(MySQLdb.cursors.DictCursor)
 
     try:
-        cursor.execute(
-           """SELECT `id`, `message`, `forum`, `user`, `thread`, `likes`, `dislikes`, `points`, `isDeleted`,
-`isSpam`, `isEdited`, `isApproved`, `isHighlighted`, `date`, `parent`
-            FROM `posts`
-            WHERE `user` = %s """ + since_str +
-           " ORDER BY `date` " + order + limit + " ;",
-            (user_email, )
-
-        )
+        cursor.execute(query, query_params)
     except MySQLdb.Error:
         return jsonify({'code': 3, 'response': "Incorrect request"})
 

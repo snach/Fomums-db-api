@@ -60,7 +60,7 @@ def forum_detail():
     return jsonify({'code': 0, 'response': forum})
 
 @app.route('/db/api/forum/listUsers/', methods=['GET'])
-def list_users():
+def list_users_from_forum():
     forum = request.args.get('forum', None)
     since_id = request.args.get('since_id', None)
     limit = request.args.get('limit', None)
@@ -106,38 +106,35 @@ def list_users():
     return jsonify({'code': 0, 'response': resp})
 
 @app.route('/db/api/forum/listThreads/', methods=['GET'])
-def list_threads():
+def list_threads_from_forum():
     forum = request.args.get('forum', None)
     since = request.args.get('since', None)
     limit = request.args.get('limit', None)
     order = request.args.get('order', 'DESC')
-    related = request.args.getlist('related', [])
+    related = request.args.getlist('related')
 
     if forum is None:
         return jsonify({'code': 3, 'response':  "Incorrect request: some data missing"})
-
-    if since is None:
-        since_str = " "
     else:
-        since_str = " AND `date` >=  " + since
+        query = """ SELECT * FROM `threads` WHERE `forum` = %s """
+        query_params = (forum,)
 
-    if limit is None:
-        limit = " "
-    else:
-        limit = ' LIMIT ' + limit
+    if since is not None:
+        query += " AND `date` >= %s "
+        query_params += (since,)
+
+    query += " ORDER BY `date` " + order + " "
+
+    if limit is not None:
+        query += "LIMIT %s;"
+        query_params += (int(limit),)
 
     db = mysql.get_db()
     cursor = db.cursor(MySQLdb.cursors.DictCursor)
 
     try:
 
-        cursor.execute(
-            """SELECT * FROM `threads` WHERE `forum` = %s """ + since_str  +
-            " ORDER BY `date` " + order + limit + " ;",
-            (
-                forum,
-            )
-        )
+        cursor.execute(query,query_params)
     except MySQLdb.Error:
         return jsonify({'code': 3, 'response': "Incorrect request"})
 
@@ -160,41 +157,37 @@ def list_threads():
     return jsonify({'code': 0, 'response': resp})
 
 @app.route('/db/api/forum/listPosts/', methods=['GET'])
-def list_posts():
+def list_posts_from_forum():
     forum = request.args.get('forum', None)
     since = request.args.get('since', None)
     limit = request.args.get('limit', None)
     order = request.args.get('order', 'DESC')
-    related = request.args.getlist('related', [])
+    related = request.args.getlist('related')
 
     if forum is None:
         return jsonify({'code': 3, 'response':  "Incorrect request: some data missing"})
-
-    if since is None:
-        since_str = " "
     else:
-        since_str = " AND `date` >=  " + since
+        query = """SELECT `id`, `message`, `forum`, `user`, `thread`, `likes`, `dislikes`, `points`, `isDeleted`,
+`isSpam`, `isEdited`, `isApproved`, `isHighlighted`, `date`, `parent` 
+            FROM `posts` WHERE `forum` = %s  """
+        query_params = (forum,)
 
-    if limit is None:
-        limit = " "
-    else:
-        limit = ' LIMIT ' + limit
+    if since is not None:
+        query += " AND `date` >=  %s "
+        query_params += (since,)
+
+    query += " ORDER BY `date` " + order + " "
+
+    if limit is not None:
+        query += " LIMIT %s;"
+        query_params += (int(limit),)
 
     db = mysql.get_db()
     cursor = db.cursor(MySQLdb.cursors.DictCursor)
 
     try:
 
-        cursor.execute(
-            """SELECT `id`, `message`, `forum`, `user`, `thread`, `likes`, `dislikes`, `points`, `isDeleted`,
-`isSpam`, `isEdited`, `isApproved`, `isHighlighted`, `date`, `parent` FROM `posts`
-            FROM `posts` WHERE `forum` = %s """ + since_str +
-            " ORDER BY `date` " + order + limit + " ;",
-            (
-                forum,
-
-            )
-        )
+        cursor.execute(query, query_params)
     except MySQLdb.Error:
         return jsonify({'code': 3, 'response': "Incorrect request"})
 

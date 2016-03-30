@@ -332,10 +332,10 @@ def restore_thread():
 
 
 @app.route('/db/api/thread/list/', methods=['GET'])
-def list_threads():
-    forum = request.args.get('forum', " ")
-    user = request.args.get('user', " ")
-    since = request.args.get('since', " ")
+def list_threads_from_thread():
+    forum = request.args.get('forum', None)
+    user = request.args.get('user', None)
+    since = request.args.get('since', None)
     limit = request.args.get('limit', None)
     order = request.args.get('order', 'DESC')
 
@@ -343,37 +343,27 @@ def list_threads():
         return jsonify({'code': 3, 'response':  "Incorrect request: some data missing"})
 
     if user is not None:
-        user_or_forum = " `user` "
+        query = """SELECT * FROM `threads` WHERE `user` = %s """
+        query_params = (user,)
     else:
-        user_or_forum = " `forum` "
+        query = """SELECT * FROM `threads` WHERE `forum` = %s """
+        query_params = (forum,)
 
-    if since is " ":
-        since_str = " "
-    else:
-        since_str = " AND `date` >=  "
+    if since is not None:
+        query += "AND `date` >= %s "
+        query_params += (since,)
 
-    if limit is None:
-        limit = " "
-    else:
-        limit = ' LIMIT ' + limit
+    query += "ORDER BY `date` " + order + " "
+
+    if limit is not None:
+        query += "LIMIT %s;"
+        query_params += (int(limit),)
 
     db = mysql.get_db()
     cursor = db.cursor(MySQLdb.cursors.DictCursor)
 
     try:
-
-        cursor.execute(
-           """SELECT *
-            FROM `threads`
-            WHERE %s = %s %s """ + since_str + "%s" +
-           " ORDER BY `date` " + order + limit + " ;",
-            (
-                user_or_forum,
-                user,
-                forum,
-                since,)
-
-            )
+        cursor.execute(query,query_params)
     except MySQLdb.Error:
         return jsonify({'code': 3, 'response': "Incorrect request"})
 
@@ -384,7 +374,7 @@ def list_threads():
     return jsonify({'code': 0, 'response': threads})
 
 @app.route('/db/api/thread/listPosts/', methods=['GET'])
-def list_posts():
+def list_posts_from_threads():
     thread = request.args.get('thread', None)
     since = request.args.get('since', " ")
     limit = request.args.get('limit', None)
