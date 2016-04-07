@@ -264,17 +264,13 @@ def remove_thread():
     if is_deleted['isDeleted'] is 0:
         try:
 
-            cursor.execute(
-                """UPDATE `threads` SET `isDeleted` = TRUE WHERE `id` = %s;""",
-                (content_json['thread'],)
-            )
+            cursor.execute("""UPDATE `threads` SET `isDeleted` = TRUE, `posts` = 0 WHERE `id` = %s;""",
+                (content_json['thread'],))
             cursor.execute(
                 """UPDATE `posts` SET `isDeleted` = TRUE WHERE `thread` = %s;""",
                 (content_json['thread'],)
             )
-            cursor.execute(
-                """UPDATE `threads` SET `posts` = 0;"""
-            )
+
 
             db.commit()
 
@@ -380,47 +376,38 @@ def list_posts_from_threads():
     limit = request.args.get('limit', None)
     order = request.args.get('order', 'desc')
     sort = request.args.get('sort', 'flat')
-    print "loh"
-
-    if thread is None:
-        return jsonify({'code': 3, 'response':  "Incorrect request: some data missing"})
-    print sort
-
+    print ("snach")
     if sort is "flat":
+        if thread is None:
+            return jsonify({'code': 3, 'response':  "Incorrect request: some data missing"})
 
-        if since is " ":
-            since_str = " "
-        else:
-            since_str = " AND `date` >=  "
+        query = """SELECT * FROM `posts` WHERE `thread` = %s """
+        query_params = (thread,)
 
-        if limit is None:
-            limit = " "
-        else:
-            limit = ' LIMIT ' + limit
+        if since is not None:
+            query += "AND `date` >= %s "
+            query_params += (since,)
+
+        query += "ORDER BY `date` " + order + " "
+
+        if limit is not None:
+            query += "LIMIT %s;"
+            query_params += (int(limit),)
 
         db = mysql.get_db()
         cursor = db.cursor(MySQLdb.cursors.DictCursor)
 
         try:
-
-            cursor.execute(
-               """SELECT `id`, `message`, `forum`, `user`, `thread`, `likes`, `dislikes`, `points`, `isDeleted`,
-`isSpam`, `isEdited`, `isApproved`, `isHighlighted`, `date`, `parent`
-                FROM `posts` WHERE `thread` = %s """ + since_str + "%s" +
-               " ORDER BY `date` " + order + limit + " ;",
-                (
-                    int(thread),
-                    since,
-                )
-            )
+            cursor.execute(query, query_params)
         except MySQLdb.Error:
             return jsonify({'code': 3, 'response': "Incorrect request"})
 
         posts = [i for i in cursor.fetchall()]
         for post in posts:
-            post.update({'date': str(thread['date'])})
+            post.update({'date': str(post['date'])})
+
         return jsonify({'code': 0, 'response': posts})
-    return jsonify({'code': 1, 'response': " "})
+
 
 
 

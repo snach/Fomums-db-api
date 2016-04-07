@@ -168,7 +168,7 @@ def list_posts_from_forum():
         return jsonify({'code': 3, 'response':  "Incorrect request: some data missing"})
     else:
         query = """SELECT `id`, `message`, `forum`, `user`, `thread`, `likes`, `dislikes`, `points`, `isDeleted`,
-`isSpam`, `isEdited`, `isApproved`, `isHighlighted`, `date`, `parent` 
+`isSpam`, `isEdited`, `isApproved`, `isHighlighted`, `date`, `parent`
             FROM `posts` WHERE `forum` = %s  """
         query_params = (forum,)
 
