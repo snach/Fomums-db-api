@@ -60,7 +60,7 @@ CREATE TABLE posts (
   isApproved    BOOL DEFAULT FALSE NOT NULL,
   isHighlighted BOOL DEFAULT FALSE NOT NULL,
   date          DATETIME           NOT NULL,
-  matPath       VARCHAR(255),
+  path       VARCHAR(255),
   isRoot        BOOL DEFAULT TRUE  NOT NULL,
   PRIMARY KEY (id)
 );

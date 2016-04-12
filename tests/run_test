@@ -1,2 +1,2 @@
  cd Desktop/TP/BD/technopark-db-api/tests/ 
- python func_test.py -l --address=0.0.0.0:8080 
+ python func_test.py --address=0.0.0.0:8080 

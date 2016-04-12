@@ -9,14 +9,12 @@ import MySQLdb
 def create_thread():
     try:
         content_json = request.json
-    #    print content_json
     except BadRequest:
         return jsonify({'code': 2, 'response': "Invalid request(syntax)"})
     if 'forum' not in content_json or 'title' not in content_json or 'isClosed' not in content_json \
             or 'user' not in content_json or 'date' not in content_json or 'message' not in content_json \
             or 'slug' not in content_json or 'isDeleted' not in content_json:
         return jsonify({'code': 3, 'response':  "Incorrect request: some data missing"})
-    thread_id = 0
     db = mysql.get_db()
     cursor = db.cursor()
 
@@ -47,7 +45,6 @@ def create_thread():
 def subscribe():
     try:
         content_json = request.json
-    #    print content_json
     except BadRequest:
         return jsonify({'code': 2, 'response': "Invalid request(syntax)"})
     if 'user' not in content_json or 'thread' not in content_json:
@@ -99,7 +96,6 @@ def thread_detail():
 def update_thread():
     try:
         content_json = request.json
-    #    print content_json
     except BadRequest:
         return jsonify({'code': 2, 'response': "Invalid request(syntax)"})
     if 'message' not in content_json or 'slug' not in content_json or 'thread' not in content_json:
@@ -129,7 +125,6 @@ def update_thread():
 def vote_thread():
     try:
         content_json = request.json
-    #    print content_json
     except BadRequest:
         return jsonify({'code': 2, 'response': "Invalid request(syntax)"})
     if 'thread' not in content_json or 'vote' not in content_json:
@@ -190,7 +185,6 @@ def unsubscribe():
 def close_thread():
     try:
         content_json = request.json
-    #    print content_json
     except BadRequest:
         return jsonify({'code': 2, 'response': "Invalid request(syntax)"})
     if 'thread' not in content_json:
@@ -270,8 +264,6 @@ def remove_thread():
                 """UPDATE `posts` SET `isDeleted` = TRUE WHERE `thread` = %s;""",
                 (content_json['thread'],)
             )
-
-
             db.commit()
 
         except MySQLdb.Error:
@@ -376,10 +368,11 @@ def list_posts_from_threads():
     limit = request.args.get('limit', None)
     order = request.args.get('order', 'desc')
     sort = request.args.get('sort', 'flat')
-    print ("snach")
+
+    if thread is None:
+        return jsonify({'code': 3, 'response':  "Incorrect request: some data missing"})
+
     if sort is "flat":
-        if thread is None:
-            return jsonify({'code': 3, 'response':  "Incorrect request: some data missing"})
 
         query = """SELECT * FROM `posts` WHERE `thread` = %s """
         query_params = (thread,)
@@ -407,6 +400,52 @@ def list_posts_from_threads():
             post.update({'date': str(post['date'])})
 
         return jsonify({'code': 0, 'response': posts})
+
+    else:
+        subquery = """SELECT `path`
+                    FROM `posts`
+                    WHERE `isRoot` = TRUE AND `thread` = %s """
+        query_params = (thread,)
+
+        if since is not None:
+            subquery += " AND `date` >= %s "
+            query_params += (since,)
+
+        if limit is not None:
+            subquery += " ORDER BY `path` " + order + " LIMIT %s "
+            query_params += (int(limit),)
+
+        query = """SELECT *
+                    FROM ( """ + subquery + """ ) as root
+                    INNER JOIN `posts` as child
+                    ON child.path LIKE CONCAT(root.path,'%%') """
+        if since is not None:
+            query += " WHERE child.date >= %s "
+            query_params += (since,)
+
+        query += " ORDER BY root.path " + order + ", child.path ASC "
+
+        if sort == 'tree' and limit is not None:
+            query += " LIMIT %s;"
+            query_params += (int(limit),)
+
+        db = mysql.get_db()
+        cursor = db.cursor(MySQLdb.cursors.DictCursor)
+
+        try:
+            cursor.execute(query, query_params)
+        except MySQLdb.Error:
+            return jsonify({'code': 3, 'response': "Incorrect request"})
+
+        posts = [i for i in cursor.fetchall()]
+        for post in posts:
+            post.update({'date': str(post['date'])})
+
+        return jsonify({'code': 0, 'response': posts})
+
+
+
+
 
 
 

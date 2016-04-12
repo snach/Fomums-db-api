@@ -2,14 +2,13 @@ from app import app, mysql, functions
 from flask import request, jsonify
 from werkzeug.exceptions import BadRequest
 import MySQLdb
-import ujson
+from numconv import int2str
 
 
 @app.route('/db/api/post/create/', methods=['POST'])
 def create_post():
     try:
         content_json = request.json
-    #    print content_json
     except BadRequest:
         return jsonify({'code': 2, 'response': "Invalid request(syntax)"})
     if 'isApproved' not in content_json or 'user' not in content_json or 'date' not in content_json \
@@ -21,10 +20,18 @@ def create_post():
     db = mysql.get_db()
     cursor = db.cursor()
 
+    if content_json['parent'] is None:
+        isRoot = True
+        path = ''
+    else:
+        isRoot = False
+        cursor.execute("""SELECT `path` FROM `posts` WHERE `id` = %s""", (content_json['parent'],))
+        path = cursor.fetchone()[0]
+
     try:
         cursor.execute(
             """INSERT INTO `posts` (`isApproved`, `user`, `date`, `message`, `isSpam`,`isHighlighted`, `thread`,
-            `forum`,`isDeleted`, `isEdited`,`parent`) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);""",
+            `forum`,`isDeleted`, `isEdited`,`parent`,`isRoot`) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);""",
             (
                 content_json['isApproved'],
                 content_json['user'],
@@ -36,17 +43,21 @@ def create_post():
                 content_json['forum'],
                 content_json['isDeleted'],
                 content_json['isEdited'],
-                content_json['parent']
+                content_json['parent'],
+                isRoot
             )
         )
+        post_id = cursor.lastrowid
+
+        base36 = int2str(int(post_id), radix=36)
+        path += str(len(base36)) + base36
+
+        cursor.execute("""UPDATE `posts` SET path = %s WHERE `id` = %s""", (path, post_id))
+        cursor.execute("""UPDATE `threads` SET `posts` = `posts` + 1 WHERE `id` = %s;""", (content_json['thread'],))
 
     except MySQLdb.Error:
         return jsonify({'code': 3, 'response': "Incorrect request: post is already exist"})
-    post_id = cursor.lastrowid
-    try:
-        cursor.execute("""UPDATE `threads` SET `posts` = `posts` + 1 WHERE `id` = %s;""", (content_json['thread'],))
-    except MySQLdb.Error:
-        return jsonify({'code': 3, 'response': "Incorrect request"})
+
     db.commit()
     content_json.update({'id': post_id})
     return jsonify({'code': 0, 'response': content_json})

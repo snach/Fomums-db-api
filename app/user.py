@@ -233,9 +233,7 @@ def list_following():
 
 @app.route('/db/api/user/listPosts/', methods=['GET'])
 def list_posts_from_user():
-    print "enter"
     user = request.args.get('user', None)
-
     since = request.args.get('since', None)
     limit = request.args.get('limit', None)
     order = request.args.get('order', 'DESC')

@@ -9,7 +9,6 @@ import MySQLdb
 def create_forum():
     try:
         content_json = request.json
-    #    print content_json
     except BadRequest:
         return jsonify({'code': 2, 'response': "Invalid request(syntax)"})
     if 'name' not in content_json or 'short_name' not in content_json or 'user' not in content_json:
@@ -186,7 +185,6 @@ def list_posts_from_forum():
     cursor = db.cursor(MySQLdb.cursors.DictCursor)
 
     try:
-
         cursor.execute(query, query_params)
     except MySQLdb.Error:
         return jsonify({'code': 3, 'response': "Incorrect request"})
