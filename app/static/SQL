@@ -7,14 +7,14 @@ CREATE TABLE users (
   about       TEXT,
   isAnonymous BOOL DEFAULT FALSE  NOT NULL,
   PRIMARY KEY (id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 DROP TABLE IF EXISTS followers;
 CREATE TABLE followers (
   follower CHAR(50) NOT NULL,
   followee CHAR(50) NOT NULL,
   PRIMARY KEY (follower, followee)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 DROP TABLE IF EXISTS forums;
 CREATE TABLE forums (
@@ -23,7 +23,7 @@ CREATE TABLE forums (
   short_name CHAR(50)       NOT NULL UNIQUE,
   user       CHAR(50)       NOT NULL,
   PRIMARY KEY (id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 DROP TABLE IF EXISTS threads;
 CREATE TABLE threads (
@@ -41,7 +41,7 @@ CREATE TABLE threads (
   date      DATETIME           NOT NULL,
   message   TEXT               NOT NULL,
   PRIMARY KEY (id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 DROP TABLE IF EXISTS posts;
 CREATE TABLE posts (
@@ -60,13 +60,13 @@ CREATE TABLE posts (
   isApproved    BOOL DEFAULT FALSE NOT NULL,
   isHighlighted BOOL DEFAULT FALSE NOT NULL,
   date          DATETIME           NOT NULL,
-  path       VARCHAR(255),
+  path          VARCHAR(255),
   isRoot        BOOL DEFAULT TRUE  NOT NULL,
   PRIMARY KEY (id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 DROP TABLE IF EXISTS subscriptions;
 CREATE TABLE subscriptions (
   user   CHAR(50) NOT NULL,
   thread INT          NOT NULL
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
