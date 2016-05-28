@@ -12,8 +12,9 @@ app.config['MYSQL_CHARSET'] = 'utf-8'
 
 mysql.init_app(app)
 
-from app import views
+from views import *
 from app import user
 from app import forums
 from app import threads
 from app import posts
+

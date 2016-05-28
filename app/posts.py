@@ -53,7 +53,7 @@ def create_post():
         path += str(len(base36)) + base36
 
         cursor.execute("""UPDATE `posts` SET path = %s WHERE `id` = %s""", (path, post_id))
-        cursor.execute("""UPDATE `threads` SET `posts` = `posts` + 1 WHERE `id` = %s;""", (content_json['thread'],))
+        #cursor.execute("""UPDATE `threads` SET `posts` = `posts` + 1 WHERE `id` = %s;""", (content_json['thread'],))
 
     except MySQLdb.Error:
         return jsonify({'code': 3, 'response': "Incorrect request: post is already exist"})
@@ -106,37 +106,22 @@ def remove_post():
 
     db = mysql.get_db()
     cursor = db.cursor(MySQLdb.cursors.DictCursor)
-
     try:
         cursor.execute(
-            """SELECT `isDeleted`
-                FROM `posts`
-                WHERE `id` = %s""",
+            """UPDATE `threads` SET `posts` = `posts` - 1
+            WHERE `id` = (
+                            SELECT `thread`
+                            FROM `posts`
+                            WHERE `id` = %s
+                            );""",
             (int(content_json['post']),)
         )
+        cursor.execute("""UPDATE `posts` SET `isDeleted` = TRUE WHERE `id` = %s;""", (content_json['post'],))
+
+        db.commit()
+
     except MySQLdb.Error:
         return jsonify({'code': 3, 'response': "Incorrect request"})
-    is_deleted = cursor.fetchone()
-
-    if is_deleted['isDeleted'] is 0:
-        try:
-            cursor.execute(
-                """UPDATE `threads` SET `posts` = `posts` - 1
-                WHERE `id` = (
-                                SELECT `thread`
-                                FROM `posts`
-                                WHERE `id` = %s
-                                );""",
-                (int(content_json['post']),)
-            )
-            cursor.execute("""UPDATE `posts` SET `isDeleted` = TRUE WHERE `id` = %s;""", (content_json['post'],))
-
-            db.commit()
-
-        except MySQLdb.Error:
-            return jsonify({'code': 3, 'response': "Incorrect request"})
-    else:
-        return jsonify({'code': 3, 'response':  "Incorrect request: post already delete"})
 
     return jsonify({'code': 0, 'response': {'post': content_json['post']}})
 
@@ -219,36 +204,22 @@ def restore_post():
 
     db = mysql.get_db()
     cursor = db.cursor(MySQLdb.cursors.DictCursor)
-
     try:
         cursor.execute(
-            """SELECT `isDeleted`
-                FROM `posts`
-                WHERE `id` = %s""",
+            """UPDATE `threads` SET `posts` = `posts` + 1
+            WHERE `id` = (
+                            SELECT `thread`
+                            FROM `posts`
+                            WHERE `id` = %s
+                            );""",
             (int(content_json['post']),)
         )
+        cursor.execute("""UPDATE `posts` SET `isDeleted` = FALSE WHERE `id` = %s;""", (content_json['post'],))
+
+        db.commit()
+
     except MySQLdb.Error:
         return jsonify({'code': 3, 'response': "Incorrect request"})
-    is_deleted = cursor.fetchone()
-    if is_deleted['isDeleted'] is 1:
-        try:
-            cursor.execute(
-                """UPDATE `threads` SET `posts` = `posts` + 1
-                WHERE `id` = (
-                                SELECT `thread`
-                                FROM `posts`
-                                WHERE `id` = %s
-                                );""",
-                (int(content_json['post']),)
-            )
-            cursor.execute("""UPDATE `posts` SET `isDeleted` = FALSE WHERE `id` = %s;""", (content_json['post'],))
-
-            db.commit()
-
-        except MySQLdb.Error:
-            return jsonify({'code': 3, 'response': "Incorrect request"})
-    else:
-        return jsonify({'code': 3, 'response':  "Incorrect request: post exist"})
 
     return jsonify({'code': 0, 'response': {'post': content_json['post']}})
 

@@ -243,33 +243,18 @@ def remove_thread():
 
     db = mysql.get_db()
     cursor = db.cursor(MySQLdb.cursors.DictCursor)
-
     try:
+
+        cursor.execute("""UPDATE `threads` SET `isDeleted` = TRUE, `posts` = 0 WHERE `id` = %s;""",
+            (content_json['thread'],))
         cursor.execute(
-            """SELECT `isDeleted`
-                FROM `threads`
-                WHERE `id` = %s""",
-            (int(content_json['thread']),)
+            """UPDATE `posts` SET `isDeleted` = TRUE WHERE `thread` = %s;""",
+            (content_json['thread'],)
         )
+        db.commit()
+
     except MySQLdb.Error:
         return jsonify({'code': 3, 'response': "Incorrect request"})
-    is_deleted = cursor.fetchone()
-
-    if is_deleted['isDeleted'] is 0:
-        try:
-
-            cursor.execute("""UPDATE `threads` SET `isDeleted` = TRUE, `posts` = 0 WHERE `id` = %s;""",
-                (content_json['thread'],))
-            cursor.execute(
-                """UPDATE `posts` SET `isDeleted` = TRUE WHERE `thread` = %s;""",
-                (content_json['thread'],)
-            )
-            db.commit()
-
-        except MySQLdb.Error:
-            return jsonify({'code': 3, 'response': "Incorrect request"})
-    else:
-        return jsonify({'code': 3, 'response':  "Incorrect request: thread already delete"})
 
     return jsonify({'code': 0, 'response': {'thread': content_json['thread']}})
 
@@ -286,35 +271,21 @@ def restore_thread():
 
     db = mysql.get_db()
     cursor = db.cursor(MySQLdb.cursors.DictCursor)
-
     try:
-        cursor.execute(
-            """SELECT `isDeleted`
-                FROM `threads`
-                WHERE `id` = %s""",
-            (int(content_json['thread']),)
+        count = cursor.execute(
+            """UPDATE `posts` SET `isDeleted` = FALSE
+            WHERE `thread` = %s;""",
+            (content_json['thread'],)
         )
+        cursor.execute(
+            """UPDATE `threads` SET `isDeleted` = FALSE, `posts` = %s
+            WHERE `id` = %s;""",
+            (count, content_json['thread'])
+        )
+        db.commit()
+
     except MySQLdb.Error:
         return jsonify({'code': 3, 'response': "Incorrect request"})
-    is_deleted = cursor.fetchone()
-    if is_deleted['isDeleted'] is 1:
-        try:
-            count = cursor.execute(
-                """UPDATE `posts` SET `isDeleted` = FALSE
-                WHERE `thread` = %s;""",
-                (content_json['thread'],)
-            )
-            cursor.execute(
-                """UPDATE `threads` SET `isDeleted` = FALSE, `posts` = %s
-                WHERE `id` = %s;""",
-                (count, content_json['thread'])
-            )
-            db.commit()
-
-        except MySQLdb.Error:
-            return jsonify({'code': 3, 'response': "Incorrect request"})
-    else:
-        return jsonify({'code': 3, 'response':  "Incorrect request: thread exist"})
 
     return jsonify({'code': 0, 'response': {'thread': content_json['thread']}})
 

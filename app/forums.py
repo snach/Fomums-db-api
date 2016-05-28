@@ -71,7 +71,7 @@ def list_users_from_forum():
     if since_id is None:
         since_str = " "
     else:
-        since_str = " AND `id` >=  " + since_id
+        since_str = " AND users.id >=  " + since_id
 
     if limit is None:
         limit = " "
@@ -82,7 +82,6 @@ def list_users_from_forum():
     cursor = db.cursor(MySQLdb.cursors.DictCursor)
 
     try:
-
         cursor.execute(
             """SELECT * FROM `users`
             WHERE `email` IN (SELECT DISTINCT `user` FROM `posts` WHERE `forum` = %s)"""

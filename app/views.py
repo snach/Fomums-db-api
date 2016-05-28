@@ -34,6 +34,5 @@ def status():
         cursor.execute('SELECT COUNT(1) FROM %s' % table)
         db.commit()
         response[table] = cursor.fetchone()[0]
-    cursor.close()
     db.close()
     return jsonify({'code': 0, 'response': response})

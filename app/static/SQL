@@ -6,14 +6,16 @@ CREATE TABLE users (
   name        CHAR(50),
   about       TEXT,
   isAnonymous BOOL DEFAULT FALSE  NOT NULL,
-  PRIMARY KEY (id)
+  PRIMARY KEY (id),
+  KEY name_email (name, email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 DROP TABLE IF EXISTS followers;
 CREATE TABLE followers (
   follower CHAR(50) NOT NULL,
   followee CHAR(50) NOT NULL,
-  PRIMARY KEY (follower, followee)
+  PRIMARY KEY (follower, followee),
+  KEY f_f (followee, follower)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 DROP TABLE IF EXISTS forums;
@@ -22,7 +24,8 @@ CREATE TABLE forums (
   name       CHAR(50)       NOT NULL UNIQUE,
   short_name CHAR(50)       NOT NULL UNIQUE,
   user       CHAR(50)       NOT NULL,
-  PRIMARY KEY (id)
+  PRIMARY KEY (id),
+  KEY (short_name, user, id, name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 DROP TABLE IF EXISTS threads;
@@ -40,7 +43,9 @@ CREATE TABLE threads (
   isClosed  BOOL DEFAULT FALSE NOT NULL,
   date      DATETIME           NOT NULL,
   message   TEXT               NOT NULL,
-  PRIMARY KEY (id)
+  PRIMARY KEY (id),
+  KEY forum_date (forum, date),
+  KEY user_date (user, date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 DROP TABLE IF EXISTS posts;
@@ -62,11 +67,30 @@ CREATE TABLE posts (
   date          DATETIME           NOT NULL,
   path          VARCHAR(255),
   isRoot        BOOL DEFAULT TRUE  NOT NULL,
-  PRIMARY KEY (id)
+  PRIMARY KEY (id),
+  KEY user (user),
+  KEY forum (forum),
+  KEY thread (thread),
+  KEY user_date (user, date),
+  KEY user_forum (user, forum),
+  KEY forum_date (forum, date),
+  KEY thread_date (thread, date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 DROP TABLE IF EXISTS subscriptions;
 CREATE TABLE subscriptions (
   user   CHAR(50) NOT NULL,
-  thread INT          NOT NULL
+  thread INT          NOT NULL,
+  PRIMARY KEY (user, thread)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+DELIMITER $$
+CREATE TRIGGER change_posts_thread AFTER INSERT ON posts
+FOR EACH ROW
+  BEGIN
+    UPDATE threads
+    SET posts = posts + 1
+    WHERE id = new.thread;
+  END
+$$
+DElIMITER ;
