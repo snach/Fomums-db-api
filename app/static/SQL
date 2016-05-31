@@ -44,6 +44,8 @@ CREATE TABLE threads (
   date      DATETIME           NOT NULL,
   message   TEXT               NOT NULL,
   PRIMARY KEY (id),
+  KEY user (user),
+  KEY forum (forum),
   KEY forum_date (forum, date),
   KEY user_date (user, date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
@@ -70,6 +72,8 @@ CREATE TABLE posts (
   PRIMARY KEY (id),
   KEY user (user),
   KEY forum (forum),
+  KEY date (date),
+  KEY path (path),
   KEY thread (thread),
   KEY user_date (user, date),
   KEY user_forum (user, forum),
@@ -81,16 +85,7 @@ DROP TABLE IF EXISTS subscriptions;
 CREATE TABLE subscriptions (
   user   CHAR(50) NOT NULL,
   thread INT          NOT NULL,
-  PRIMARY KEY (user, thread)
+  PRIMARY KEY (user, thread),
+  KEY thread_user (thread, user)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
-DELIMITER $$
-CREATE TRIGGER change_posts_thread AFTER INSERT ON posts
-FOR EACH ROW
-  BEGIN
-    UPDATE threads
-    SET posts = posts + 1
-    WHERE id = new.thread;
-  END
-$$
-DElIMITER ;

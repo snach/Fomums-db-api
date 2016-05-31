@@ -53,7 +53,7 @@ def create_post():
         path += str(len(base36)) + base36
 
         cursor.execute("""UPDATE `posts` SET path = %s WHERE `id` = %s""", (path, post_id))
-        #cursor.execute("""UPDATE `threads` SET `posts` = `posts` + 1 WHERE `id` = %s;""", (content_json['thread'],))
+        cursor.execute("""UPDATE `threads` SET `posts` = `posts` + 1 WHERE `id` = %s;""", (content_json['thread'],))
 
     except MySQLdb.Error:
         return jsonify({'code': 3, 'response': "Incorrect request: post is already exist"})
